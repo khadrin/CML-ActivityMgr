@@ -18,6 +18,12 @@ tr.d1-flagged td {
     background-color: #FF9797; color: black;
 }
 </style>
+[% styles.d0 = 'background-color: #D0D0D0; color: black;' %]
+[% styles.d1 = 'background-color: #F0F0F0; color: black;' %]
+[% styles.d0Renewed = 'background-color: #2DC800; color: black;' %]
+[% styles.d1Renewed = 'background-color: #6FFF44; color: black;' %]
+[% styles.d0Flagged = 'background-color: #FF4848; color: black;' %]
+[% styles.d1Flagged = 'background-color: #FF9797; color: black;' %]
 <div>
   <h2>Checkouts</h2>
   <table>
@@ -31,9 +37,11 @@ tr.d1-flagged td {
     </tr>
 [% FOREACH checkout IN checkouts %]
     [% status = '' %]
-    [% status = '-renewed' IF checkout.was_renewed; %]
-    [% status = '-flagged' IF checkout.flagged; %]
-    <tr class="d[% loop.index % 2 %][% status %]">
+    [% status = 'Renewed' IF checkout.was_renewed; %]
+    [% status = 'Flagged' IF checkout.flagged; %]
+    [% digit = loop.index % 2 %]
+    [% class = "d${digit}${status}" %]
+    <tr class="[% class %]" style="[% styles.$class %]">
       <td>[% checkout.title | html %]</td>
       <td>[% checkout.format | html %]</td>
       <td>[% checkout.due_date_orig.strftime('%F') | html %]</td>

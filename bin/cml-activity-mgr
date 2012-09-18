@@ -12,11 +12,12 @@ use Email::Sender::Simple qw(sendmail);
 
 use CML::Account;
 
-my $usage = 'Usage: $0 CARD_NUMBER PIN';
-my ($card_number, $pin) = @ARGV;
-die "$usage\n" unless $card_number && $pin;
+my $usage = 'Usage: $0 OWNER CARD_NUMBER PIN';
+my ($owner, $card_number, $pin) = @ARGV;
+die "$usage\n" unless $owner && $card_number && $pin;
 
 my $cfg = {
+    owner           => $owner,
     card_number     => $card_number,
     pin             => $pin,
     flag_days_left  => 7,
@@ -44,6 +45,6 @@ my $tt_vars = { checkouts => $checkouts_sorted };
 my $kit = Email::MIME::Kit->new({source => 'mkits/activity'});
 my $email = $kit->assemble($tt_vars);
 print $email->as_string;
-sendmail($email, { to => 'Stephen J. Smith <sjs@khadrin.com>' });
+#sendmail($email, { to => 'Stephen J. Smith <sjs@khadrin.com>' });
 
 exit;

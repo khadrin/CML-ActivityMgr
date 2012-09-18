@@ -2,7 +2,7 @@
   "renderer": [ "TT", { "strict": 0 } ],
   "header": [
     { "From": "noreplies@khadrin.com" },
-    { "Subject": "[CML] Account Activity for [% owner.name.first %]" }
+    { "Subject": "[CML] Account Activity for [% owner %]" }
   ],
   "alternatives": [
     {
