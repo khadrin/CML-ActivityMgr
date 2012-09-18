@@ -20,6 +20,8 @@ WriteMakefile(
         'DateTime' => 0,
         'DateTime::Format::Strptime' => 0,
         'HTML::Entities' => 0,
+        'Email::MIME::Kit' => 0,
+        'Email::Sender' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'CML-ActivityMgr-*' },
