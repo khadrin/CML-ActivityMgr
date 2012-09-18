@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+use Carp qw(cluck confess);
+
+use Template;
+use DateTime;
+use Email::Mime::Kit;
+use Email::Sender::Simple qw(sendmail);
+
+use CML::Account;
+
+my $usage = 'Usage: $0 CARD_NUMBER PIN';
+my ($card_number, $pin) = @ARGV;
+die "$usage\n" unless $card_number && $pin;
+
+my $cfg = {
+    card_number     => $card_number,
+    pin             => $pin,
+    flag_days_left  => 7,
+    renew_days_left => 1,
+    renew_noop      => 1,
+};
+
+my $account = CML::Account->new(card_number => $cfg->{card_number}, pin => $cfg->{pin});
+my $checkouts = $account->checkouts;
+
+for my $checkout (@$checkouts) {
+    if ($checkout->renewable && $checkout->days_left <= $cfg->{renew_days_left}) {
+        my $ok = $checkout->renew(noop => $cfg->{renew_noop});
+        $checkout->flagged(1) unless $ok;
+    }
+
+    if (!$checkout->renewable && $checkout->days_left <= $cfg->{flag_days_left}) {
+        $checkout->flagged(1);
+    }
+}
+
+my $checkouts_sorted = [sort {DateTime->compare($a->due_date, $b->due_date)} @$checkouts];
+my $tt_vars = { checkouts => $checkouts_sorted };
+
+my $kit = Email::MIME::Kit->new({source => 'mkits/activity'});
+my $email = $kit->assemble($tt_vars);
+print $email->as_string;
+sendmail($email, { to => 'Stephen J. Smith <sjs@khadrin.com>' });
+
+exit;
