@@ -6,9 +6,8 @@ use warnings;
 use Data::Dumper;
 use Carp qw(cluck confess);
 
-use Template;
 use DateTime;
-use Email::Mime::Kit;
+use Email::MIME::Kit;
 use Email::Sender::Simple qw(sendmail);
 
 use CML::Account;
