@@ -44,7 +44,7 @@ my $tt_vars = { checkouts => $checkouts_sorted };
 
 my $kit = Email::MIME::Kit->new({source => 'mkits/activity'});
 my $email = $kit->assemble($tt_vars);
-print $email->as_string;
-#sendmail($email, { to => 'Stephen J. Smith <sjs@khadrin.com>' });
+#print $email->as_string;
+sendmail($email, { to => 'Stephen J. Smith <sjs@khadrin.com>' });
 
 exit;
