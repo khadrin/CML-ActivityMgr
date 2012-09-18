@@ -11,7 +11,7 @@ WriteMakefile(
     ($ExtUtils::MakeMaker::VERSION >= 6.3002
       ? ('LICENSE'=> 'perl')
       : ()),
-    PL_FILES            => { bin/cml-activity-mgr },
+    PL_FILES            => { 'bin/cml-activity-mgr' },
     PREREQ_PM => {
         'Test::More' => 0,
         'Moose' => 0,
