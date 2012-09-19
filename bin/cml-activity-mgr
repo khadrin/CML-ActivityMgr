@@ -6,45 +6,29 @@ use warnings;
 use Data::Dumper;
 use Carp qw(cluck confess);
 
-use DateTime;
-use Email::MIME::Kit;
 use Email::Sender::Simple qw(sendmail);
 
-use CML::Account;
+use CML::ActivityMgr;
 
-my $usage = 'Usage: $0 OWNER CARD_NUMBER PIN';
-my ($owner, $card_number, $pin) = @ARGV;
-die "$usage\n" unless $owner && $card_number && $pin;
+my $usage = "Usage: $0 OWNER EMAIL_TO CARD_NUMBER PIN";
+my ($owner, $email_to, $card_number, $pin) = @ARGV;
+die "$usage\n" unless $owner && $email_to && $card_number && $pin;
 
 my $cfg = {
     owner           => $owner,
+    email_to        => $email_to ,
     card_number     => $card_number,
     pin             => $pin,
     flag_days_left  => 7,
     renew_days_left => 1,
-    renew_noop      => 1,
+    renew_noop     => 0,
 };
 
-my $account = CML::Account->new(card_number => $cfg->{card_number}, pin => $cfg->{pin});
-my $checkouts = $account->checkouts;
-
-for my $checkout (@$checkouts) {
-    if ($checkout->renewable && $checkout->days_left <= $cfg->{renew_days_left}) {
-        my $ok = $checkout->renew(noop => $cfg->{renew_noop});
-        $checkout->flagged(1) unless $ok;
-    }
-
-    if (!$checkout->renewable && $checkout->days_left <= $cfg->{flag_days_left}) {
-        $checkout->flagged(1);
-    }
-}
-
-my $checkouts_sorted = [sort {DateTime->compare($a->due_date, $b->due_date)} @$checkouts];
-my $tt_vars = { checkouts => $checkouts_sorted };
-
-my $kit = Email::MIME::Kit->new({source => 'mkits/activity'});
-my $email = $kit->assemble($tt_vars);
-#print $email->as_string;
-sendmail($email, { to => 'Stephen J. Smith <sjs@khadrin.com>' });
+my $activity_mgr = CML::ActivityMgr->new(owner => $cfg->{owner}, card_number => $cfg->{card_number}, pin => $cfg->{pin});;
+$activity_mgr->renew(days_left => $cfg->{renew_days_left});
+$activity_mgr->flag_nonrenewable(days_left => $cfg->{flag_days_left});
+my $email = $activity_mgr->activity_email;
+print $email->as_string;
+sendmail($email, { to => $cfg->{email_to} }) if $email;
 
 exit;

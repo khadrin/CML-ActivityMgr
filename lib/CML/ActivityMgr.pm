@@ -1,8 +1,96 @@
 package CML::ActivityMgr;
+use Moose;
 
-use 5.006;
 use strict;
 use warnings;
+
+use Data::Dumper;
+use Carp qw(cluck confess);
+
+use DateTime;
+use File::ShareDir qw(dist_dir);
+use Cwd;
+
+use Email::MIME::Kit;
+
+use CML::Account;
+
+has 'owner'       => (is => 'rw', required => 1);
+has 'card_number' => (is => 'rw', required => 1);
+has 'pin'         => (is => 'rw', required => 1);
+
+has '_account' => (is => 'rw', lazy_build => 1);
+has 'checkouts' => (is => 'rw', lazy_build => 1);
+
+sub _build__account {
+    my $self = shift;
+
+    my $account = CML::Account->new(card_number => $self->card_number, pin => $self->pin);
+    return $account;
+}
+
+sub _build_checkouts {
+    my $self = shift;
+    my $account = $self->_account;
+
+    my $checkouts = $account->checkouts;
+    return $checkouts;
+}
+
+sub renew {
+    my $usage = 'usage: $mgr->renew([days_left] [noop])';
+    my $self = shift;
+    my %p = (days_left => 1, noop => 0, @_);
+
+    my $n_renewed = 0;
+    my $checkouts = $self->checkouts;
+    for my $checkout (@$checkouts) {
+        if ($checkout->renewable && $checkout->days_left <= $p{days_left}) {
+            my $ok = $checkout->renew(noop => $p{noop});
+            $checkout->flagged(1) unless $ok;
+        }
+    }
+
+    return $n_renewed;
+}
+
+sub flag_nonrenewable {
+    my $usage = 'usage: $mgr->flag_nonrenewable([days_left])';
+    my $self = shift;
+    my %p = (days_left => 7, @_);
+
+    my $n_flagged = 0;
+    my $checkouts = $self->checkouts;
+    for my $checkout (@$checkouts) {
+        if (!$checkout->renewable && $checkout->days_left <= $p{days_left}) {
+            $checkout->flagged(1);
+            ++$n_flagged;
+        }
+    }
+
+    return $n_flagged;
+}
+
+sub activity_email {
+    my $usage = 'usage: $mgr->activity_email';
+    my $self = shift;
+
+    my $checkouts = $self->checkouts;
+
+    my $checkouts_sorted = [sort {DateTime->compare($a->due_date, $b->due_date)} @$checkouts];
+    my $tt_vars = { checkouts => $checkouts_sorted };
+
+
+    my $share_dir = getcwd;
+    eval {
+        $share_dir = dist_dir('CML-ActivityMgr')
+    };
+    warn $@ if $@;
+    
+    my $kit = Email::MIME::Kit->new({source => "$share_dir/mkits/activity"});
+    my $email = $kit->assemble($tt_vars);
+    return $email;
+}
 
 =head1 NAME
 
@@ -10,12 +98,11 @@ CML::ActivityMgr - The great new CML::ActivityMgr!
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
-
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -58,9 +145,6 @@ Stephen J. Smith, C<< <sjs at khadrin.com> >>
 Please report any bugs or feature requests to C<bug-cml-activitymgr at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CML-ActivityMgr>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
-
-
-
 
 =head1 SUPPORT
 
