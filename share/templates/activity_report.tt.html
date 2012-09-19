@@ -1,23 +1,3 @@
-<style type="text/css">
-tr.d0 td {
-    background-color: #D0D0D0; color: black;
-}
-tr.d1 td {
-    background-color: #F0F0F0; color: black;
-}
-tr.d0-renewed td {
-    background-color: #2DC800; color: black;
-}
-tr.d1-renewed td {
-    background-color: #6FFF44; color: black;
-}
-tr.d0-flagged td {
-    background-color: #FF4848; color: black;
-}
-tr.d1-flagged td {
-    background-color: #FF9797; color: black;
-}
-</style>
 [% styles.d0 = 'background-color: #D0D0D0; color: black;' %]
 [% styles.d1 = 'background-color: #F0F0F0; color: black;' %]
 [% styles.d0Renewed = 'background-color: #2DC800; color: black;' %]
@@ -25,7 +5,7 @@ tr.d1-flagged td {
 [% styles.d0Flagged = 'background-color: #FF4848; color: black;' %]
 [% styles.d1Flagged = 'background-color: #FF9797; color: black;' %]
 <div>
-  <h2>Checkouts</h2>
+  <h2>Checkouts as of [% today | html %]</h2>
   <table>
     <tr>
       <th>Title</th>

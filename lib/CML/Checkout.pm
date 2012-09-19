@@ -57,7 +57,7 @@ sub was_renewed {
 sub days_left {
     my $self = shift;
     my $today = DateTime->today;
-    my $days_left = $today->delta_days($self->due_date);
+    my $days_left = $today->subtract_datetime($self->due_date);
 
     return $days_left->delta_days;
 }

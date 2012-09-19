@@ -115,6 +115,7 @@ sub activity_report {
     my $tt_vars = {
         owner => $self->owner,
         checkouts => $checkouts_sorted,
+        today => DateTime->today->strftime("%F"),
     };
 
     my $report = '';
