@@ -1,5 +1,16 @@
 package CML::ActivityMgr;
 use Moose;
+our $VERSION = '0.03';
+
+=head1 NAME
+
+CML::ActivityMgr - Columbus Metro Library activity manager and auto-renewer.
+
+=head1 VERSION
+
+Version 0.03
+
+=cut
 
 use strict;
 use warnings;
@@ -10,17 +21,20 @@ use Carp qw(cluck confess);
 use DateTime;
 use File::ShareDir qw(dist_dir);
 use Cwd;
-
-use Email::MIME::Kit;
+use Template;
+use Email::MIME::CreateHTML;
 
 use CML::Account;
 
-has 'owner'       => (is => 'rw', required => 1);
-has 'card_number' => (is => 'rw', required => 1);
-has 'pin'         => (is => 'rw', required => 1);
+has owner       => (is => 'rw', required => 1);
+has card_number => (is => 'rw', required => 1);
+has pin         => (is => 'rw', required => 1);
 
-has '_account' => (is => 'rw', lazy_build => 1);
-has 'checkouts' => (is => 'rw', lazy_build => 1);
+has _account   => (is => 'rw', lazy_build => 1);
+has checkouts  => (is => 'rw', lazy_build => 1);
+
+has _share_dir => (is => 'rw', lazy_build => 1);
+has _tt        => (is => 'rw', lazy_build => 1);
 
 sub _build__account {
     my $self = shift;
@@ -35,6 +49,23 @@ sub _build_checkouts {
 
     my $checkouts = $account->checkouts;
     return $checkouts;
+}
+
+sub _build__share_dir {
+    my $share_dir = getcwd;
+    eval {
+        $share_dir = dist_dir('CML-ActivityMgr')
+    };
+    warn $@ if $@;
+    return $share_dir;
+}
+
+sub _build__tt {
+    my $self = shift;
+    my $share_dir = $self->_share_dir;
+
+    my $tt = Template->new(INCLUDE_PATH => "$share_dir/templates");
+    return $tt;
 }
 
 sub renew {
@@ -71,113 +102,57 @@ sub flag_nonrenewable {
     return $n_flagged;
 }
 
+sub activity_report {
+    my $usage = 'usage: $mgr->report';
+    my $self = shift;
+
+    my $tt = $self->_tt;
+    my $share_dir = $self->_share_dir;
+    my $checkouts = $self->checkouts;
+
+    my $checkouts_sorted = [sort {DateTime->compare($a->due_date, $b->due_date)} @$checkouts];
+
+    my $tt_vars = {
+        owner => $self->owner,
+        checkouts => $checkouts_sorted,
+    };
+
+    my $report = '';
+    $tt->process('activity_report.tt.html', $tt_vars, \$report)
+        or confess($tt->error);
+
+    return $report;
+}
+
 sub activity_email {
     my $usage = 'usage: $mgr->activity_email';
     my $self = shift;
 
-    my $checkouts = $self->checkouts;
+    my $html = $self->activity_report;
 
-    my $checkouts_sorted = [sort {DateTime->compare($a->due_date, $b->due_date)} @$checkouts];
-    my $tt_vars = { checkouts => $checkouts_sorted };
-
-
-    my $share_dir = getcwd;
-    eval {
-        $share_dir = dist_dir('CML-ActivityMgr')
-    };
-    warn $@ if $@;
-    
-    my $kit = Email::MIME::Kit->new({source => "$share_dir/mkits/activity"});
-    my $email = $kit->assemble($tt_vars);
+    my $subject = '[CML] Account Activity for ' . $self->owner;
+    my $email = Email::MIME->create_html(
+        header => [ Subject => $subject ],
+        body => $html,
+    );
     return $email;
 }
 
-=head1 NAME
-
-CML::ActivityMgr - The great new CML::ActivityMgr!
-
-=head1 VERSION
-
-Version 0.02
-
-=cut
-
-our $VERSION = '0.02';
-
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
+Renews library books and emails a report.
 
-Perhaps a little code snippet.
-
-    use CML::ActivityMgr;
-
-    my $foo = CML::ActivityMgr->new();
-    ...
-
-=head1 EXPORT
-
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
-
-=head1 SUBROUTINES/METHODS
-
-=head2 function1
-
-=cut
-
-sub function1 {
-}
-
-=head2 function2
-
-=cut
-
-sub function2 {
-}
+    cml-activity-mgr
 
 =head1 AUTHOR
 
 Stephen J. Smith, C<< <sjs at khadrin.com> >>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-cml-activitymgr at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CML-ActivityMgr>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
 
 =head1 SUPPORT
 
 You can find documentation for this module with the perldoc command.
 
     perldoc CML::ActivityMgr
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=CML-ActivityMgr>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/CML-ActivityMgr>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/CML-ActivityMgr>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/CML-ActivityMgr/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
 
 =head1 LICENSE AND COPYRIGHT
 
@@ -188,7 +163,6 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
 
 =cut
 
