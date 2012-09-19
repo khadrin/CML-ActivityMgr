@@ -1,6 +1,6 @@
 package CML::ActivityMgr;
 use Moose;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -8,7 +8,7 @@ CML::ActivityMgr - Columbus Metro Library activity manager and auto-renewer.
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
@@ -71,7 +71,7 @@ sub _build__tt {
 sub renew {
     my $usage = 'usage: $mgr->renew([days_left] [noop])';
     my $self = shift;
-    my %p = (days_left => 1, noop => 0, @_);
+    my %p = (days_left => 0, noop => 0, @_);
 
     my $n_renewed = 0;
     my $checkouts = $self->checkouts;
@@ -88,7 +88,7 @@ sub renew {
 sub flag_nonrenewable {
     my $usage = 'usage: $mgr->flag_nonrenewable([days_left])';
     my $self = shift;
-    my %p = (days_left => 7, @_);
+    my %p = (days_left => 6, @_);
 
     my $n_flagged = 0;
     my $checkouts = $self->checkouts;

@@ -59,8 +59,7 @@ sub days_left {
     my $today = DateTime->today;
     my $days_left = $today->delta_days($self->due_date);
 
-    # + 1 to count today.
-    return $days_left->delta_days + 1;
+    return $days_left->delta_days;
 }
 
 sub expired {
