@@ -27,6 +27,7 @@ $activity_mgr->renew;
 $activity_mgr->flag_nonrenewable;
 my $email = $activity_mgr->activity_email;
 $email->header_str_set(To => $cfg->{email_to});
+$email->header_str_set(From => $cfg->{email_from});
 sendmail($email);
 
 exit;
