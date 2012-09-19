@@ -1,6 +1,6 @@
 package CML::ActivityMgr;
 use Moose;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -8,7 +8,7 @@ CML::ActivityMgr - Columbus Metro Library activity manager and auto-renewer.
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
