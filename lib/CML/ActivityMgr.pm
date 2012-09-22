@@ -35,11 +35,22 @@ has checkouts  => (is => 'rw', lazy_build => 1);
 
 has _share_dir => (is => 'rw', lazy_build => 1);
 has _tt        => (is => 'rw', lazy_build => 1);
+has '_today'   => (is => 'rw', lazy_build => 1);
+
+sub _build__today {
+    my $self = shift;
+    my $today = DateTime->today;
+    return $today;
+}
 
 sub _build__account {
     my $self = shift;
 
-    my $account = CML::Account->new(card_number => $self->card_number, pin => $self->pin);
+    my $account = CML::Account->new(
+        card_number => $self->card_number,
+        pin => $self->pin,
+        _today => $self->_today
+    );
     return $account;
 }
 

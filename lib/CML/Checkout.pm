@@ -9,6 +9,7 @@ use HTML::Entities;
 
 has '_ua' => (is => 'ro', required => 1);
 has '_checkout_row' => (is => 'ro', required => 1);
+has '_today' => (is => 'rw', lazy_build => 1);
 
 has 'title' => (is => 'rw');
 has 'format' => (is => 'rw');
@@ -16,6 +17,12 @@ has 'due_date_orig' => (is => 'rw');
 has 'due_date_new' => (is => 'rw');
 has 'renew_uri' => (is => 'rw');
 has 'flagged' => (is => 'rw', default => 0);
+
+sub _build__today {
+    my $self = shift;
+    my $today = DateTime->today;
+    return $today;
+}
 
 sub BUILD {
     my $self = shift;

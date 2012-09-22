@@ -16,6 +16,8 @@ has 'pin' => (
     required => 1,
 );
 
+has '_today'   => (is => 'rw', lazy_build => 1);
+
 has 'account_uri' => (
     is => 'ro',
     default => 'http://www.columbuslibrary.org/my_account',
@@ -36,6 +38,12 @@ has '_table_parser' => (
     lazy => 1,
     default => sub { return HTML::TableContentParser->new }
 );
+
+sub _build__today {
+    my $self = shift;
+    my $today = DateTime->today;
+    return $today;
+}
 
 sub _build__account_html {
     my $self = shift;
@@ -71,13 +79,14 @@ sub _build_checkouts {
     my $self = shift;
 
     my $ua = $self->_ua;
+    my $today = $self->_today;
     my $account_tables = $self->_account_tables;
     my ($checkout_tables) = grep { $_->{id} eq 'check_outs' } @$account_tables;
     my @checkout_rows = grep { exists $_->{cells} } @{$checkout_tables->{rows}};
 
     my @checkouts = ();
     for my $row (@checkout_rows) {
-        my $checkout = CML::Checkout->new(_ua => $ua, _checkout_row => $row);
+        my $checkout = CML::Checkout->new(_ua => $ua, _checkout_row => $row, _today => $today);
         push @checkouts, $checkout;
     }
 
