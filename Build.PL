@@ -18,7 +18,7 @@ my $build = Module::Build->new(
         'Template' => 0,
         'Email::Sender' => 0,
         'File::ShareDir' => 0,
-        'Config::YAML' => 0,
+        #'Config::YAML' => 0,
     },
     script_files => 'bin/cml-activity-mgr',
     share_dir => 'share',
