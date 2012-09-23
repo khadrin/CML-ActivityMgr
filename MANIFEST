@@ -1,0 +1,13 @@
+bin/cml-activity-mgr
+Build.PL
+lib/CML/ActivityMgr.pm
+lib/CML/Checkout.pm
+lib/CML/CheckoutActivity.pm
+MANIFEST			This list of files
+README
+share/templates/activity_report.tt.html
+t/00-load.t
+t/data/my-account-activity.html
+t/data/my-account-login.html
+t/data/my-account-renew.html
+t/integration.t

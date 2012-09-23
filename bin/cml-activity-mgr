@@ -9,10 +9,11 @@ use Carp qw(cluck confess);
 use Email::Sender::Simple qw(sendmail);
 
 use CML::ActivityMgr;
+use CML::CheckoutActivity;
 
-my $usage = "Usage: $0 OWNER CARD_NUMBER PIN EMAIL_TO EMAIL_FROM";
+my $usage = "Usage: $0 OWNER CARD_NUMBER PIN [EMAIL_TO EMAIL_FROM]";
 my ($owner, $card_number, $pin, $email_to, $email_from) = @ARGV;
-die "$usage\n" unless $owner && $card_number && $pin && $email_to && $email_from;
+die "$usage\n" unless $owner && $card_number && $pin;
 
 my $cfg = {
     owner           => $owner,
@@ -23,11 +24,18 @@ my $cfg = {
 };
 
 my $activity_mgr = CML::ActivityMgr->new(owner => $cfg->{owner}, card_number => $cfg->{card_number}, pin => $cfg->{pin});;
+
 $activity_mgr->renew;
 $activity_mgr->flag_nonrenewable;
-my $email = $activity_mgr->activity_email;
-$email->header_str_set(To => $cfg->{email_to});
-$email->header_str_set(From => $cfg->{email_from});
-sendmail($email);
+
+if ($cfg->{email_to}) {
+    my $email = $activity_mgr->activity_email;
+    $email->header_str_set(To => $cfg->{email_to});
+    $email->header_str_set(From => $cfg->{email_from});
+    sendmail($email);
+}
+else {
+    print $activity_mgr->activity_report;
+}
 
 exit;

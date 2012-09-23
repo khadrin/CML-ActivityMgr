@@ -7,8 +7,8 @@ use DateTime;
 use DateTime::Format::Strptime;
 use HTML::Entities;
 
-has '_ua' => (is => 'ro', required => 1);
 has '_checkout_row' => (is => 'ro', required => 1);
+has '_base'         => (is => 'ro', required => 0);
 has '_today' => (is => 'rw', lazy_build => 1);
 
 has 'title' => (is => 'rw');
@@ -18,18 +18,8 @@ has 'due_date_new' => (is => 'rw');
 has 'renew_uri' => (is => 'rw');
 has 'flagged' => (is => 'rw', default => 0);
 
-sub _build__today {
-    my $self = shift;
-    my $today = DateTime->today;
-    return $today;
-}
-
 sub BUILD {
     my $self = shift;
-
-    my $ua = $self->_ua; 
-    my $base = $ua->base;
-    $base =~ s{/[^/]+$}{/};
 
     my $row = $self->_checkout_row;
 
@@ -47,7 +37,7 @@ sub BUILD {
     }
     # decode entities in renewal_uri or can't renew
     $renew_uri = decode_entities($renew_uri);
-    $renew_uri = $base . $renew_uri if $renew_uri;
+    $renew_uri = $self->_base . $renew_uri;
     $self->renew_uri($renew_uri);
 }
 
@@ -63,7 +53,7 @@ sub was_renewed {
 
 sub days_left {
     my $self = shift;
-    my $today = DateTime->today;
+    my $today = $self->_today;
     my $days_left = $self->due_date->subtract_datetime($today);
 
     return $days_left->delta_days;
@@ -81,38 +71,13 @@ sub renewable {
 }
 
 sub renew {
+    my $usage = 'usage: $checkout->renew(new_date_str)';
     my $self = shift;
-    my %p = (noop => 0, @_);
+    my %p = @_;
+    confess $usage unless $p{new_date_str};
 
-    my $ua = $self->_ua; 
-    my $ok = 0;
-    $ua->get($self->renew_uri) unless $p{noop};
-    my $status = $ua->status;
-    if ($status eq '200') {
-        my $content = $ua->content;
-        my $search_str = 'The new due date for this item is';
-        if ($content =~ /$search_str <b>(.{9})<\/b>/s) {
-            my $due_date_new = $self->_parse_date_str($1);
-            $self->due_date_new($due_date_new);
-            $ok = 1;
-        }
-    }
-
-    return $ok;
-}
-
-sub as_hash {
-    my $self = shift;
-    my $checkout = {
-        title => $self->title,
-        format => $self->format,
-        due_date_new => $self->due_date->strftime("%F"),
-        renewable => $self->renewable,
-        days_left => $self->days_left,
-        was_renewed => $self->was_renewed,
-        renew_uri => $self->renew_uri,
-    };
-    return $checkout;
+    my $due_date_new = $self->_parse_date_str($1);
+    $self->due_date_new($due_date_new);
 }
 
 sub _parse_date_str {
@@ -124,6 +89,12 @@ sub _parse_date_str {
     );
     my $date = $date_parser->parse_datetime($date_str);
     return $date;
+}
+
+sub _build__today {
+    my $self = shift;
+    my $today = $self->_today;
+    return $today;
 }
 
 1;

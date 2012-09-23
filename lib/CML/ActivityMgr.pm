@@ -1,6 +1,6 @@
 package CML::ActivityMgr;
 use Moose;
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 NAME
 
@@ -8,7 +8,7 @@ CML::ActivityMgr - Columbus Metro Library activity manager and auto-renewer.
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
@@ -24,18 +24,63 @@ use Cwd;
 use Template;
 use Email::MIME::CreateHTML;
 
-use CML::Account;
+use CML::CheckoutActivity;
 
-has owner       => (is => 'rw', required => 1);
-has card_number => (is => 'rw', required => 1);
-has pin         => (is => 'rw', required => 1);
+has owner       => (is => 'ro', required => 1);
+has card_number => (is => 'ro');
+has pin         => (is => 'ro');
 
-has _account   => (is => 'rw', lazy_build => 1);
+has '_activity_html' => (is => 'ro', lazy_build => 1);
+
+sub BUILD {
+    my $usage = 'usage: CML::ActivityMgr->new(owner {card_number pin}|{_activity_html})';
+    my $self = shift;
+    confess $usage unless $self->owner && (($self->card_number && $self->pin) || $self->_activity_html);
+}
+
+has 'account_uri' => (
+    is => 'ro',
+    default => 'http://www.columbuslibrary.org/my_account',
+);
+
+has 'webservice_base_uri' => (
+    is => 'ro',
+    default => 'https://dpweb.columbuslibrary.org/servlet_jsp/MyAccount2/',
+);
+
 has checkouts  => (is => 'rw', lazy_build => 1);
 
 has _share_dir => (is => 'rw', lazy_build => 1);
 has _tt        => (is => 'rw', lazy_build => 1);
 has '_today'   => (is => 'rw', lazy_build => 1);
+
+has '_ua' => (
+    is => 'ro',
+    lazy => 1,
+    default => sub { return WWW::Mechanize->new }
+);
+
+sub _build__activity_html {
+    my $self = shift;
+
+    my $ua = $self->_ua;
+    $ua->get($self->account_uri);
+
+    my $form = $ua->form_name('Login');
+    if ($form) {
+        $ua->set_fields(
+            patronid  => $self->card_number,
+            patronpin => $self->pin,
+        );
+        $ua->click;
+    }
+
+    my $status = $ua->status;
+    confess "my-account page returned status ($status)"
+        unless $status eq '200';
+    my $account_html = $ua->content;
+    return $account_html;
+}
 
 sub _build__today {
     my $self = shift;
@@ -56,9 +101,17 @@ sub _build__account {
 
 sub _build_checkouts {
     my $self = shift;
-    my $account = $self->_account;
+    my $activity_html = $self->_activity_html;
+    my $base = $self->webservice_base_uri;
+    my $today = $self->_today;
 
-    my $checkouts = $account->checkouts;
+    my $checkout_activity = CML::CheckoutActivity->new(
+        _activity_html => $activity_html,
+        _base          => $base,
+        _today         => $today,
+    );
+
+    my $checkouts = $checkout_activity->checkouts;
     return $checkouts;
 }
 
@@ -84,11 +137,26 @@ sub renew {
     my $self = shift;
     my %p = (days_left => 0, noop => 0, @_);
 
+    my $ua = $self->_ua;
+
     my $n_renewed = 0;
     my $checkouts = $self->checkouts;
     for my $checkout (@$checkouts) {
         if ($checkout->renewable && $checkout->days_left <= $p{days_left}) {
-            my $ok = $checkout->renew(noop => $p{noop});
+           my $ok = 0;
+
+            my $renew_uri = $checkout->renew_uri;
+            $ua->get($self->renew_uri) unless $p{noop};
+            my $status = $ua->status;
+            if ($status eq '200') {
+                my $content = $ua->content;
+                my $search_str = 'The new due date for this item is';
+                if ($content =~ /$search_str <b>(.{9})<\/b>/s) {
+                    $checkout->renew(new_date_str => $1);
+                    $ok = 1;
+                }
+            }
+
             $checkout->flagged(1) unless $ok;
         }
     }
@@ -126,7 +194,7 @@ sub activity_report {
     my $tt_vars = {
         owner => $self->owner,
         checkouts => $checkouts_sorted,
-        today => DateTime->today->strftime("%F"),
+        today => $self->_today->strftime("%F"),
     };
 
     my $report = '';
