@@ -1,6 +1,6 @@
 package CML::ActivityMgr;
 use Moose;
-our $VERSION = '0.06';
+our $VERSION = '0.80';
 
 =head1 NAME
 
@@ -8,7 +8,7 @@ CML::ActivityMgr - Columbus Metro Library activity manager and auto-renewer.
 
 =head1 VERSION
 
-Version 0.06
+Version 0.80
 
 =cut
 
@@ -133,11 +133,14 @@ sub _build__tt {
 }
 
 sub renew {
-    my $usage = 'usage: $mgr->renew([days_left] [noop])';
+    my $usage = 'usage: $mgr->renew([days_left] [fake])';
     my $self = shift;
-    my %p = (days_left => 0, noop => 0, @_);
+    my %p = (days_left => 0, fake => 0, @_);
 
     my $ua = $self->_ua;
+    my $today = $self->_today;
+    my $fake_renew_date = $today->add(days => 14);
+    my $fake_renew_str = $self->_today->strftime("%d%b%Y");
 
     my $n_renewed = 0;
     my $checkouts = $self->checkouts;
@@ -146,10 +149,14 @@ sub renew {
            my $ok = 0;
 
             my $renew_uri = $checkout->renew_uri;
-            $ua->get($self->renew_uri) unless $p{noop};
-            my $status = $ua->status;
+            my $status = '200';
+            unless ($p{fake}) {
+                $ua->get($self->renew_uri);
+                $status = $ua->status;
+            }
             if ($status eq '200') {
-                my $content = $ua->content;
+                my $content = "The new due date for this item is <b>$fake_renew_str<\/b>";
+                $content = $ua->content unless $p{fake};
                 my $search_str = 'The new due date for this item is';
                 if ($content =~ /$search_str <b>(.{9})<\/b>/s) {
                     $checkout->renew(new_date_str => $1);

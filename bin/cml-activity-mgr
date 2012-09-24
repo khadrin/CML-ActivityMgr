@@ -7,31 +7,47 @@ use Data::Dumper;
 use Carp qw(cluck confess);
 
 use Email::Sender::Simple qw(sendmail);
+use Getopt::Long;
+use File::Slurp;
 
 use CML::ActivityMgr;
 use CML::CheckoutActivity;
 
-my $usage = "Usage: $0 OWNER CARD_NUMBER PIN [EMAIL_TO EMAIL_FROM]";
-my ($owner, $card_number, $pin, $email_to, $email_from) = @ARGV;
-die "$usage\n" unless $owner && $card_number && $pin;
+sub cfg;
+sub usage;
 
-my $cfg = {
-    owner           => $owner,
-    email_to        => $email_to,
-    email_from      => $email_from,
-    card_number     => $card_number,
-    pin             => $pin,
-};
+my $cfg = cfg();
 
-my $activity_mgr = CML::ActivityMgr->new(owner => $cfg->{owner}, card_number => $cfg->{card_number}, pin => $cfg->{pin});;
+my $activity_mgr;
+if ($cfg->{card_number} && $cfg->{pin}) {
+    $activity_mgr = CML::ActivityMgr->new(
+        owner => $cfg->{owner},
+        card_number => $cfg->{'card-number'},
+        pin => $cfg->{pin},
+    );
+}
+elsif ($cfg->{'activity-file'}) {
+    my $activity_html = read_file($cfg->{'activity-file'});
+    $activity_mgr = CML::ActivityMgr->new(
+        owner => $cfg->{owner},
+        _activity_html => $activity_html,
+    );
+}
+else {
+    die usage();
+}
 
-$activity_mgr->renew;
-$activity_mgr->flag_nonrenewable;
+#TODO
+print $activity_mgr->activity_report;
+exit;
+
+$activity_mgr->renew(days_left => $cfg->{'renew-days-left'}, fake => $cfg->{'fake-renew'});
+$activity_mgr->flag_nonrenewable(days_left => $cfg->{'flag-days-left'});
 
 if ($cfg->{email_to}) {
     my $email = $activity_mgr->activity_email;
     $email->header_str_set(To => $cfg->{email_to});
-    $email->header_str_set(From => $cfg->{email_from});
+    $email->header_str_set(From => $cfg->{email_from}) if $cfg->{email_from};
     sendmail($email);
 }
 else {
@@ -39,3 +55,73 @@ else {
 }
 
 exit;
+
+sub cfg {
+    my $cfg = {
+        help              => 0,
+        owner             => '',
+        'card-number'     => '',
+        pin               => '',
+        'activity-file'   => '',
+        'email-to'        => '',
+        'email-from'      => '',
+        'flag-days-left'  => 6,
+        'renew-days-left' => 0,
+
+        'fake-renew'      => 0,
+        'today'           => '',
+    };
+    
+    GetOptions(
+        $cfg,
+        'help|h',
+        'owner|o=s',
+        'card-number=s',
+        'pin=s',
+        'activity-file=s',
+        'email-to=s',
+        'email-from=s',
+        'flag-days-left=i',
+        'renew-days-left=i',
+
+        'fake-renew',
+        'today',
+    ) or die usage();
+
+    if ($cfg->{help}) {
+        print usage();
+        exit;
+    }
+    
+    die usage() unless $cfg->{owner};
+
+    return $cfg;
+}
+
+sub usage {
+    my $usage = <<"TEXT";
+$0 [--help]
+   [--owner --card-number --pin | --owner --activity-file]
+Fetch account activity from the Columbus Metro Library web site, autorenew any expiring
+books, and flag books that will be due soon and can't be renewed. Produces an HTML report
+detailing account activity. Prints the report, or mails it to --email-to if provided.
+
+Options:
+  --help, -h        display this help
+  --owner, -o       name of account owner
+  --card-number     library card number
+  --pin             library card pin
+  --activity-file   file containing pre-fetched account activity html
+  --email-to        mail report to this comma separated list of email addresses
+  --email-from      email address from which mail should originate
+  --flag-days-left  flag nonrenewable items when the given number of days remain
+                    (default 6)
+  --renew-days-left renew items when the given number of days remain (default 0)
+
+Options for Testing:
+  --fake-renew      don't actually renew, fake it
+  --today           change the reference day (format YYYY-MM-DD)
+TEXT
+
+    return $usage;
+}
