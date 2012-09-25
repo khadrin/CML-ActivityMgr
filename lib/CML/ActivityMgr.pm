@@ -88,17 +88,6 @@ sub _build__today {
     return $today;
 }
 
-sub _build__account {
-    my $self = shift;
-
-    my $account = CML::Account->new(
-        card_number => $self->card_number,
-        pin => $self->pin,
-        _today => $self->_today
-    );
-    return $account;
-}
-
 sub _build_checkouts {
     my $self = shift;
     my $activity_html = $self->_activity_html;
@@ -139,14 +128,14 @@ sub renew {
 
     my $ua = $self->_ua;
     my $today = $self->_today;
-    my $fake_renew_date = $today->add(days => 14);
-    my $fake_renew_str = $self->_today->strftime("%d%b%Y");
+    my $fake_renew_date = $today->clone->add(days => 14);
+    my $fake_renew_str = $fake_renew_date->strftime("%d%b%Y");
 
     my $n_renewed = 0;
     my $checkouts = $self->checkouts;
     for my $checkout (@$checkouts) {
         if ($checkout->renewable && $checkout->days_left <= $p{days_left}) {
-           my $ok = 0;
+            my $ok = 0;
 
             my $renew_uri = $checkout->renew_uri;
             my $status = '200';
@@ -163,23 +152,27 @@ sub renew {
                     $ok = 1;
                 }
             }
-
-            $checkout->flagged(1) unless $ok;
+            $checkout->flagged(!$ok);
         }
     }
 
     return $n_renewed;
 }
 
-sub flag_nonrenewable {
-    my $usage = 'usage: $mgr->flag_nonrenewable([days_left])';
+sub flag {
+    my $usage = 'usage: $mgr->flag([nonrenewable_days_left] [renewable_days_left])';
     my $self = shift;
-    my %p = (days_left => 6, @_);
+    my %p = (nonrenewable_days_left => 6, renewable_days_left => 0, @_);
 
     my $n_flagged = 0;
     my $checkouts = $self->checkouts;
     for my $checkout (@$checkouts) {
-        if (!$checkout->renewable && $checkout->days_left <= $p{days_left}) {
+        if (!$checkout->renewable && $checkout->days_left <= $p{nonrenewable_days_left}) {
+            $checkout->flagged(1);
+            ++$n_flagged;
+        }
+
+        if ($checkout->renewable && $checkout->days_left <= $p{renewable_days_left}) {
             $checkout->flagged(1);
             ++$n_flagged;
         }
@@ -196,7 +189,7 @@ sub activity_report {
     my $share_dir = $self->_share_dir;
     my $checkouts = $self->checkouts;
 
-    my $checkouts_sorted = [sort {DateTime->compare($a->due_date, $b->due_date)} @$checkouts];
+    my $checkouts_sorted = [sort {DateTime->compare($a->due_date_orig, $b->due_date_orig)} @$checkouts];
 
     my $tt_vars = {
         owner => $self->owner,

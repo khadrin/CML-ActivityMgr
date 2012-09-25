@@ -17,15 +17,14 @@
     </tr>
 [% FOREACH checkout IN checkouts %]
     [% status = '' %]
-    [% status = 'Renewed' IF checkout.was_renewed; %]
-    [% status = 'Flagged' IF checkout.flagged; %]
+    [% IF checkout.was_renewed %][% status = 'Renewed' %][% ELSIF checkout.flagged %][% status = 'Flagged' %][% END %]
     [% digit = loop.index % 2 %]
     [% class = "d${digit}${status}" %]
     <tr class="[% class %]" style="[% styles.$class %]">
       <td>[% checkout.title | html %]</td>
       <td>[% checkout.format | html %]</td>
       <td>[% checkout.due_date_orig.strftime('%F') | html %]</td>
-      <td><[% checkout.due_date_new.strftime('%F') | html %]/td>
+      <td>[% checkout.due_date_new.strftime('%F') | html %]</td>
       <td>[% checkout.days_left | html %]</td>
       <td>[% IF checkout.renewable %]<a href="[% checkout.renew_uri %]">renew</a>[% END %]</td>
     </tr>

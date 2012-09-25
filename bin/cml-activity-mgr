@@ -9,6 +9,8 @@ use Carp qw(cluck confess);
 use Email::Sender::Simple qw(sendmail);
 use Getopt::Long;
 use File::Slurp;
+use DateTime;
+use DateTime::Format::Strptime;
 
 use CML::ActivityMgr;
 use CML::CheckoutActivity;
@@ -18,31 +20,14 @@ sub usage;
 
 my $cfg = cfg();
 
-my $activity_mgr;
-if ($cfg->{card_number} && $cfg->{pin}) {
-    $activity_mgr = CML::ActivityMgr->new(
-        owner => $cfg->{owner},
-        card_number => $cfg->{'card-number'},
-        pin => $cfg->{pin},
-    );
-}
-elsif ($cfg->{'activity-file'}) {
-    my $activity_html = read_file($cfg->{'activity-file'});
-    $activity_mgr = CML::ActivityMgr->new(
-        owner => $cfg->{owner},
-        _activity_html => $activity_html,
-    );
-}
-else {
-    die usage();
-}
+my $activity_mgr = activity_mgr($cfg);
 
-#TODO
-print $activity_mgr->activity_report;
-exit;
-
-$activity_mgr->renew(days_left => $cfg->{'renew-days-left'}, fake => $cfg->{'fake-renew'});
-$activity_mgr->flag_nonrenewable(days_left => $cfg->{'flag-days-left'});
+$activity_mgr->renew(days_left => $cfg->{'renew-days-left'}, fake => $cfg->{'fake-renew'})
+    unless $cfg->{'skip-renew'};
+$activity_mgr->flag(
+    nonrenewable_days_left => $cfg->{'flag-days-left'},
+    renewable_days_left    => $cfg->{'renew-days-left'},
+);
 
 if ($cfg->{email_to}) {
     my $email = $activity_mgr->activity_email;
@@ -55,48 +40,6 @@ else {
 }
 
 exit;
-
-sub cfg {
-    my $cfg = {
-        help              => 0,
-        owner             => '',
-        'card-number'     => '',
-        pin               => '',
-        'activity-file'   => '',
-        'email-to'        => '',
-        'email-from'      => '',
-        'flag-days-left'  => 6,
-        'renew-days-left' => 0,
-
-        'fake-renew'      => 0,
-        'today'           => '',
-    };
-    
-    GetOptions(
-        $cfg,
-        'help|h',
-        'owner|o=s',
-        'card-number=s',
-        'pin=s',
-        'activity-file=s',
-        'email-to=s',
-        'email-from=s',
-        'flag-days-left=i',
-        'renew-days-left=i',
-
-        'fake-renew',
-        'today',
-    ) or die usage();
-
-    if ($cfg->{help}) {
-        print usage();
-        exit;
-    }
-    
-    die usage() unless $cfg->{owner};
-
-    return $cfg;
-}
 
 sub usage {
     my $usage = <<"TEXT";
@@ -120,8 +63,92 @@ Options:
 
 Options for Testing:
   --fake-renew      don't actually renew, fake it
+  --skip-renew      don't try to renew and don't fake it
   --today           change the reference day (format YYYY-MM-DD)
 TEXT
 
     return $usage;
+}
+
+sub cfg {
+    my $cfg = {
+        help              => 0,
+        owner             => '',
+        'card-number'     => '',
+        pin               => '',
+        'activity-file'   => '',
+        'email-to'        => '',
+        'email-from'      => '',
+        'flag-days-left'  => 6,
+        'renew-days-left' => 0,
+
+        'fake-renew'      => 0,
+        'skip-renew'      => 0,
+        'today'           => '',
+    };
+    
+    GetOptions(
+        $cfg,
+        'help|h',
+        'owner|o=s',
+        'card-number=s',
+        'pin=s',
+        'activity-file=s',
+        'email-to=s',
+        'email-from=s',
+        'flag-days-left=i',
+        'renew-days-left=i',
+
+        'fake-renew',
+        'skip-renew',
+        'today=s',
+    ) or die usage();
+
+    if ($cfg->{help}) {
+        print usage();
+        exit;
+    }
+    
+    die usage() unless $cfg->{owner};
+
+    my $today = $cfg->{today} || DateTime->today;
+    if ($cfg->{today}) {
+        $today =~ s/\D//g;
+        my $date_parser = DateTime::Format::Strptime->new(
+            pattern => '%Y%m%d',
+        );
+        $today = $date_parser->parse_datetime($today);
+    }
+    $cfg->{today} = $today;
+
+    return $cfg;
+}
+
+sub activity_mgr {
+    my ($cfg) = @_;
+
+    my $activity_mgr;
+    my @extra_args = ();
+    push @extra_args, _today => $cfg->{today} if $cfg->{today};
+    if ($cfg->{'card-number'} && $cfg->{pin}) {
+        $activity_mgr = CML::ActivityMgr->new(
+            owner => $cfg->{owner},
+            card_number => $cfg->{'card-number'},
+            pin => $cfg->{pin},
+            @extra_args,
+        );
+    }
+    elsif ($cfg->{'activity-file'}) {
+        my $activity_html = read_file($cfg->{'activity-file'});
+        $activity_mgr = CML::ActivityMgr->new(
+            owner => $cfg->{owner},
+            _activity_html => $activity_html,
+            @extra_args,
+        );
+    }
+    else {
+        die usage();
+    }
+
+    return $activity_mgr;
 }

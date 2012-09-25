@@ -36,9 +36,11 @@ sub BUILD {
         $renew_uri = $1;
     }
     # decode entities in renewal_uri or can't renew
-    $renew_uri = decode_entities($renew_uri);
-    $renew_uri = $self->_base . $renew_uri;
-    $self->renew_uri($renew_uri);
+    if ($renew_uri) {
+        $renew_uri = decode_entities($renew_uri);
+        $renew_uri = $self->_base . $renew_uri;
+        $self->renew_uri($renew_uri);
+    }
 }
 
 sub due_date {
@@ -76,7 +78,7 @@ sub renew {
     my %p = @_;
     confess $usage unless $p{new_date_str};
 
-    my $due_date_new = $self->_parse_date_str($1);
+    my $due_date_new = $self->_parse_date_str($p{new_date_str});
     $self->due_date_new($due_date_new);
 }
 
