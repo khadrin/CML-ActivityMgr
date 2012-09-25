@@ -11,11 +11,11 @@ Example reports:
 
     $ cml-activity-mgr -o Stephen --activity-file=t/data/my-account-activity.html --skip-renew --today='2012-09-22' > /tmp/activity0.html
 
-![pre-renew activity report](docs/activity-pre-renew.png)
+![pre-renew activity report](CML-ActivityMgr/docs/activity-pre-renew.png)
 
     $ cml-activity-mgr -o Stephen --activity-file=t/data/my-account-activity.html --fake-renew --today='2012-09-22' > /tmp/activity1.html
 
-![post-renew activity report](docs/activity-post-renew.png)
+![post-renew activity report](CML-ActivityMgr/docs/activity-post-renew.png)
 
 INSTALLATION
 
