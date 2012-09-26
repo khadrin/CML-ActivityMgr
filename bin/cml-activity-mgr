@@ -29,10 +29,10 @@ $activity_mgr->flag(
     renewable_days_left    => $cfg->{'renew-days-left'},
 );
 
-if ($cfg->{email_to}) {
+if ($cfg->{'email-to'}) {
     my $email = $activity_mgr->activity_email;
-    $email->header_str_set(To => $cfg->{email_to});
-    $email->header_str_set(From => $cfg->{email_from}) if $cfg->{email_from};
+    $email->header_str_set(To => $cfg->{'email-to'});
+    $email->header_str_set(From => $cfg->{'email-from'}) if $cfg->{'email-from'};
     sendmail($email);
 }
 else {
