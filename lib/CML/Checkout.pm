@@ -39,8 +39,8 @@ sub BUILD {
     if ($renew_uri) {
         $renew_uri = decode_entities($renew_uri);
         $renew_uri = $self->_base . $renew_uri;
-        $self->renew_uri($renew_uri);
     }
+    $self->renew_uri($renew_uri);
 }
 
 sub due_date {

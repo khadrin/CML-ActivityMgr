@@ -152,7 +152,7 @@ sub renew {
                     $ok = 1;
                 }
             }
-            $checkout->flagged(!$ok);
+            $checkout->flagged($ok ? 0 : 1);
         }
     }
 
