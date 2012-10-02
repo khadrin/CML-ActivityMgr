@@ -140,7 +140,7 @@ sub renew {
             my $renew_uri = $checkout->renew_uri;
             my $status = '200';
             unless ($p{fake}) {
-                $ua->get($self->renew_uri);
+                $ua->get($renew_uri);
                 $status = $ua->status;
             }
             if ($status eq '200') {
